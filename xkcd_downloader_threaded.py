@@ -1,19 +1,26 @@
 import logging
 import os
 import shutil
+import threading
 
 import requests
 from bs4 import BeautifulSoup as Soup
 
+logger = logging.getLogger('xkcd_downloader')
+logger.setLevel(logging.INFO)
+s_handler = logging.StreamHandler()
+s_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s = %(levelname)s %(message)s')
+s_handler.setFormatter(formatter)
+logger.addHandler(s_handler)
 
-def xkcd_downloader():
-    try:
-        shutil.rmtree('comics')
-    except FileNotFoundError as e:
-        logger.warning('{} - creating one...'.format(e))
+try:
+    shutil.rmtree('comics')
+except FileNotFoundError as e:
+    logger.warning('{} - creating one...'.format(e))
+os.makedirs('comics', exist_ok=True)
 
-    os.makedirs('comics', exist_ok=True)
-
+def xkcd_downloader_threaded(start_comic, end_comic):
     logger = logging.getLogger('xkcd_downloader')
     logger.setLevel(logging.INFO)
     s_handler = logging.StreamHandler()
@@ -24,8 +31,8 @@ def xkcd_downloader():
 
     root_url = 'http://xkcd.com/'
 
-    counter = 1
-    while 1:
+    counter = start_comic
+    while counter < end_comic:
         url = '{}{}'.format(root_url, counter)
         response = requests.get(url)
         response.raise_for_status()
@@ -34,8 +41,6 @@ def xkcd_downloader():
 
 
         try:
-            # img_url = requests.utils.quote(soup.find_all('img')[1].get('src'))
-            # img_url = requests.utils.quote(soup.select('#comic img'))
             img_url = soup.select('#comic img')[0].get('src')
             img_url = 'http:{}'.format(img_url)
         except IndexError as e:
@@ -60,4 +65,6 @@ def xkcd_downloader():
 
         counter += 1
 
-xkcd_downloader()
+for num in range(1, 2000, 100):
+    thread = threading.Thread(target=xkcd_downloader_threaded, args=[num, num+99])
+    thread.start()
